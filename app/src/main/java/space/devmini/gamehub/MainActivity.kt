@@ -116,7 +116,8 @@ class MainActivity : AppCompatActivity() {
 
         webView.webViewClient = ShellWebViewClient()
         webView.webChromeClient = ShellChromeClient()
-        webView.downloadListener = ShellDownloadListener()
+        // WebView.setDownloadListener has no getter, so Kotlin exposes no property syntax here.
+        webView.setDownloadListener(ShellDownloadListener())
     }
 
     override fun onStart() {
