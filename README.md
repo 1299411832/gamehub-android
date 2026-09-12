@@ -1,6 +1,6 @@
-# GameHub Android
+# 游戏源神 Android 客户端
 
-GameHub（<https://pan.devmini.space/>）的 Android 侧载壳：一个单 Activity 的 WebView 容器，
+「游戏源神」（<https://pan.devmini.space/>）的 Android 侧载壳：一个单 Activity 的 WebView 容器，
 **不是**独立客户端。站点内容更新后 App 无需发版即可看到最新内容。
 
 ## 下载
@@ -9,6 +9,12 @@ GameHub（<https://pan.devmini.space/>）的 Android 侧载壳：一个单 Activ
 
 ```
 https://github.com/xi7ang/gamehub-android/releases/latest/download/app-release.apk
+```
+
+国内推荐主地址（本站服务器镜像，由 `gamehub-apk-mirror.sh` 每天 04:20 同步）：
+
+```
+https://devmini.space/dl/gamehub-app.apk
 ```
 
 侧载安装即可（首次安装需允许「安装未知来源应用」）。
