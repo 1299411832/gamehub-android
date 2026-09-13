@@ -1,6 +1,6 @@
 # 游戏源神 Android 客户端
 
-「游戏源神」（<https://pan.devmini.space/>）的 Android 侧载壳：一个单 Activity 的 WebView 容器，
+「游戏源神」（<https://mibear.top/>）的 Android 侧载壳：一个单 Activity 的 WebView 容器，
 **不是**独立客户端。站点内容更新后 App 无需发版即可看到最新内容。
 
 ## 下载
@@ -11,17 +11,17 @@
 https://github.com/xi7ang/gamehub-android/releases/latest/download/app-release.apk
 ```
 
-国内推荐主地址（本站服务器镜像，由 `gamehub-apk-mirror.sh` 每天 04:20 同步）：
+国内推荐主地址（阿里云 ECS，由本仓库 GitHub Actions 构建后直接 rsync 上去）：
 
 ```
-https://devmini.space/dl/gamehub-app.apk
+https://mibear.top/dl/gamehub-app.apk
 ```
 
 侧载安装即可（首次安装需允许「安装未知来源应用」）。
 
 ## 壳的行为
 
-- 只加载 `pan.devmini.space` 及其子域；站外 http/https 链接交给系统浏览器。
+- 只加载 `mibear.top` 及其子域；站外 http/https 链接交给系统浏览器。
 - `quark://`、`uc://`、`xunlei://`、`baiduyun://`、`intent://` 等自定义 scheme 交给系统处理，
   未安装对应 App 时只弹 Toast，不崩溃。
 - 返回键优先网页后退；顶部有细进度条；主框架加载失败显示离线/重试视图。
@@ -33,6 +33,9 @@ https://devmini.space/dl/gamehub-app.apk
 
 构建全部在 GitHub Actions 上完成（`.github/workflows/build.yml`，push `main` 或手动触发），
 本地产物不是发布路径。CI 使用 Gradle 8.9（仓库内**不提交** gradle wrapper 的二进制 jar）。
+
+构建完成后 CI 做两件事：发布到 GitHub Release 的 `latest`，以及通过 rsync 把 APK 推到阿里云 ECS
+的 `/home/www/gamehub-dl/gamehub-app.apk`（用 `gamehubdeploy` 用户，密钥走仓库 Secrets）。
 
 ```
 gradle assembleRelease

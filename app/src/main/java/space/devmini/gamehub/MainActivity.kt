@@ -30,7 +30,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 /**
- * Single-activity WebView shell for https://pan.devmini.space/.
+ * Single-activity WebView shell for https://mibear.top/.
  *
  * Site content is served remotely, so content updates never require an app release.
  * The shell only knows how to: stay on-site, hand foreign links to the system,
@@ -342,8 +342,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
-        const val HOME_URL = "https://pan.devmini.space/"
-        const val BASE_HOST = "pan.devmini.space"
+        const val HOME_URL = "https://mibear.top/"
+        const val BASE_HOST = "mibear.top"
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
     }
 }

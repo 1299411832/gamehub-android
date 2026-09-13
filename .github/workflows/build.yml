@@ -71,6 +71,12 @@ jobs:
           cp "$SRC" dist/app-release.apk
           ls -l dist
 
+      - name: Stage APK for web distribution
+        run: |
+          mkdir -p webdist
+          cp dist/app-release.apk webdist/gamehub-app.apk
+          ls -l webdist
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -87,3 +93,17 @@ jobs:
           make_latest: true
           files: dist/app-release.apk
           fail_on_unmatched_files: true
+
+      # 推到阿里云 ECS，供 https://mibear.top/dl/gamehub-app.apk 下载
+      # （webdist/ 里只放一个 gamehub-app.apk，所以 --delete 是安全的）
+      - name: Deploy APK to Aliyun ECS
+        if: github.ref == 'refs/heads/main'
+        uses: burnett01/rsync-deployments@v9
+        with:
+          switches: -avzr --delete
+          path: webdist/
+          remote_path: ${{ secrets.REMOTE_APK_PATH }}
+          remote_host: ${{ secrets.REMOTE_HOST }}
+          remote_port: ${{ secrets.REMOTE_PORT }}
+          remote_user: ${{ secrets.REMOTE_USER }}
+          remote_key: ${{ secrets.REMOTE_PRIVATE_KEY }}
