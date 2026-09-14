@@ -27,7 +27,7 @@ https://mibear.top/dl/gamehub-app.apk
 - 返回键优先网页后退；顶部有细进度条；主框架加载失败显示离线/重试视图。
 - 支持文件选择（Admin 页面上传）与 http/https 下载；下载到 `.apk` 完成后触发系统安装器。
 - 屏幕旋转不重载页面。
-- 权限仅 `INTERNET`、`REQUEST_INSTALL_PACKAGES` 与 `POST_NOTIFICATIONS`（资源更新提醒用，API 33+ 需用户授权），无任何分析/广告依赖。
+- 权限：壳自己声明 `INTERNET`、`REQUEST_INSTALL_PACKAGES`、`POST_NOTIFICATIONS`（API 33+ 需用户授权）；`androidx.work` 会在 manifest 合并时额外并入 `WAKE_LOCK`、`ACCESS_NETWORK_STATE`、`RECEIVE_BOOT_COMPLETED`、`FOREGROUND_SERVICE` 等系统权限。无任何分析/广告依赖。
 
 ## 资源更新通知
 
