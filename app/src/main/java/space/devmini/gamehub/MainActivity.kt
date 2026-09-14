@@ -1,13 +1,16 @@
 package space.devmini.gamehub
 
+import android.Manifest
 import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.view.View
@@ -54,6 +57,11 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            // 拒绝也不影响使用：没有通知权限就不弹，其余功能照常
+        }
+
     private val downloadCompleteReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
@@ -92,9 +100,41 @@ class MainActivity : AppCompatActivity() {
             }
         )
 
+        Notifications.ensureChannel(this)
+        Notifications.schedulePeriodic(this)
+        maybeRequestNotificationPermission()
+
         if (savedInstanceState == null) {
-            webView.loadUrl(HOME_URL)
+            // 从通知点进来时直接落到目标页，否则回首页
+            webView.loadUrl(targetUrlFrom(intent) ?: HOME_URL)
         }
+    }
+
+    /** 冷启动已在 onCreate 处理；App 还活着时点通知走这里（launchMode=singleTop）。 */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val target = targetUrlFrom(intent) ?: return
+        errorView.visibility = View.GONE
+        webView.loadUrl(target)
+    }
+
+    private fun targetUrlFrom(intent: Intent?): String? =
+        SiteConfig.resolve(intent?.getStringExtra(Notifications.EXTRA_TARGET_URL))
+
+    /**
+     * API 33+ 的通知权限只在首次启动问一次 —— 被拒后不再纠缠用户，
+     * 想重新打开得去系统设置（App 里没必要为此做一个常驻入口）。
+     */
+    private fun maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (Notifications.isPermitted(this)) return
+
+        val prefs = getSharedPreferences(Notifications.PREFS, MODE_PRIVATE)
+        if (prefs.getBoolean(Notifications.KEY_PERM_ASKED, false)) return
+        prefs.edit().putBoolean(Notifications.KEY_PERM_ASKED, true).apply()
+
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     @Suppress("SetJavaScriptEnabled")
@@ -348,8 +388,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
-        const val HOME_URL = "https://mibear.top/"
-        const val BASE_HOST = "mibear.top"
+        // 站点地址统一定义在 SiteConfig（NotifyWorker 拉 notify.json 也要用同一个域）
+        const val HOME_URL = SiteConfig.HOME_URL
+        const val BASE_HOST = SiteConfig.BASE_HOST
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
 
         // 站点用它判断「身在 App 内」（前端 src/lib/appEnv.js 匹配 GameHubApp），

@@ -28,8 +28,8 @@ android {
         applicationId = "space.devmini.gamehub"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
     }
 
     signingConfigs {
@@ -80,4 +80,6 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("com.google.android.material:material:1.12.0")
+    // 每日摘要通知的定期检查（约 +100KB；不引入任何推送 SDK）
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
 }

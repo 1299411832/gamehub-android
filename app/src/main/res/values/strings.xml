@@ -10,4 +10,7 @@
     <string name="download_started">已开始下载</string>
     <string name="download_failed">下载失败</string>
     <string name="install_failed">无法启动安装程序，请在文件管理器中手动安装</string>
+
+    <string name="channel_updates">资源更新</string>
+    <string name="channel_updates_desc">有新的游戏资源上架时提醒你，每天最多一次</string>
 </resources>
