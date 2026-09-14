@@ -112,6 +112,12 @@ class MainActivity : AppCompatActivity() {
         settings.setSupportMultipleWindows(false)
         settings.cacheMode = WebSettings.LOAD_DEFAULT
 
+        // 站点靠这个标记判断“身在 App 内”，从而隐藏「安卓APP」下载入口。
+        // 只追加自定义 token，UA 其余部分保持 WebView 默认 —— 别拿 UA 去冒充浏览器。
+        if (!settings.userAgentString.contains(UA_MARKER)) {
+            settings.userAgentString = settings.userAgentString + UA_MARKER
+        }
+
         CookieManager.getInstance().setAcceptCookie(true)
 
         webView.webViewClient = ShellWebViewClient()
@@ -345,5 +351,9 @@ class MainActivity : AppCompatActivity() {
         const val HOME_URL = "https://mibear.top/"
         const val BASE_HOST = "mibear.top"
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
+
+        // 站点用它判断「身在 App 内」（前端 src/lib/appEnv.js 匹配 GameHubApp），
+        // 从而只在这里隐藏「安卓APP」下载入口。
+        const val UA_MARKER = " GameHubApp"
     }
 }
