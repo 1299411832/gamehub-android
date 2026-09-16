@@ -3,6 +3,7 @@ package space.devmini.gamehub
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -10,20 +11,38 @@ import java.util.Calendar
 import kotlin.random.Random
 
 /**
- * 定期拉 `notify.json`，有新内容就弹一条每日摘要通知。
+ * 在固定时段（见 `Notifications.SLOT_HOURS`）拉 `notify.json`，弹一条资源更新摘要。
  *
- * 判据是 payload 的 `latestAt`（最新一条资源的时间戳），存在 SharedPreferences 里做基线：
- *  - 基线不存在 → 只记录，不弹（刚装完不该收到一条「三天前更新过」）；
- *  - 和上次一样 → 什么都不做（同一份文件重复拉取不重复打扰）；
- *  - 变了 → 过两道闸（20 小时节流 + 9~22 点静默时段）再弹。
+ * 调度不是周期性的，而是「一次执行完就把下一个时段排上」的链条：
+ * WorkManager 的周期任务只能给最小间隔，给不了「每天 13:00 和 20:00」这种墙钟时间。
  *
- * 没有推送服务，所以这里失败就交给 WorkManager 退避重试，不做自己的重试逻辑。
+ * 去重按**时段**（`2026-09-16T13`），不是按「距上次多久」：
+ * 同一次执行被退避重试、或者排程被 Doze 推迟，都不会对同一时段重复弹。
+ *
+ * 内容每次随机挑一条近期资源 + 随机钩子标题 —— 同一天的两次推送才不会念同一句。
+ * 没有推送服务，所以网络失败就交给 WorkManager 退避重试，不做自己的重试逻辑。
  */
 class NotifyWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
         val context = applicationContext
+        return try {
+            run(context)
+        } finally {
+            // 不管成功、跳过还是退避重试，都要把下一个时段续上 —— 链条断一次就再也不会响。
+            // 用 finally 是因为 Result.retry() 也会走到这里。
+            Notifications.scheduleNext(context)
+        }
+    }
+
+    private suspend fun run(context: Context): Result {
         val prefs = context.getSharedPreferences(Notifications.PREFS, Context.MODE_PRIVATE)
+
+        // 时段 key 由排程时写进 inputData；拿不到（异常路径）就退回当前整点。
+        val slot = inputData.getString(KEY_SLOT) ?: Notifications.slotKey(System.currentTimeMillis())
+        if (prefs.getString(Notifications.KEY_LAST_SLOT, null) == slot) {
+            return Result.success() // 这个时段已经推过了（重试或重复排程）
+        }
 
         val payload = try {
             fetchNotify()
@@ -31,49 +50,33 @@ class NotifyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             return Result.retry() // 网络/解析失败：交给 WorkManager 退避重试
         }
 
-        if (payload.isNull("latestAt")) return Result.success()
-        val latestAt = payload.optString("latestAt")
-        if (latestAt.isBlank()) return Result.success()
-
-        val lastSeen = prefs.getString(Notifications.KEY_LAST_SEEN, null)
-        if (lastSeen == latestAt) return Result.success()
-
-        // 首次运行：只立基线。别把安装前攒的更新当成"新消息"砸给用户。
-        if (lastSeen == null) {
-            prefs.edit().putString(Notifications.KEY_LAST_SEEN, latestAt).apply()
-            return Result.success()
+        val items = payload.optJSONArray("items")
+        if (items == null || items.length() == 0) {
+            return Result.success() // 近期没有任何资源，没有可说的内容，别硬发一条空的
         }
 
-        // 闸一：每日摘要，两次推送至少隔 20 小时
-        val lastNotifyAt = prefs.getLong(Notifications.KEY_LAST_NOTIFY_AT, 0L)
-        if (System.currentTimeMillis() - lastNotifyAt < Notifications.MIN_NOTIFY_INTERVAL_MS) {
-            return Result.success()
-        }
-
-        // 闸二：静默时段。这里刻意不更新基线，白天那次检查会补弹。
+        // 兜底静默时段：时段正常落在 13/20 点，这条只为挡住被推迟到深夜的执行。
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         if (hour < Notifications.QUIET_HOUR_START || hour >= Notifications.QUIET_HOUR_END) {
             return Result.success()
         }
 
-        // 没通知权限：记下基线，避免用户以后授权时被一条陈年旧闻突袭
+        // 没通知权限：记下时段，避免用户以后授权时被一条陈年旧闻突袭
         if (!Notifications.isPermitted(context)) {
-            prefs.edit().putString(Notifications.KEY_LAST_SEEN, latestAt).apply()
+            prefs.edit().putString(Notifications.KEY_LAST_SLOT, slot).apply()
             return Result.success()
         }
 
+        val featured = items.optJSONObject(Random.nextInt(items.length()))
         val shown = Notifications.showDigest(
             context,
-            buildTitle(payload),
-            buildText(payload),
+            buildTitle(payload, featured),
+            buildText(payload, featured),
             payload.optString("tapUrl").ifBlank { null }
         )
 
         if (shown) {
-            prefs.edit()
-                .putString(Notifications.KEY_LAST_SEEN, latestAt)
-                .putLong(Notifications.KEY_LAST_NOTIFY_AT, System.currentTimeMillis())
-                .apply()
+            prefs.edit().putString(Notifications.KEY_LAST_SLOT, slot).apply()
         }
         return Result.success()
     }
@@ -81,14 +84,15 @@ class NotifyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
     // ────────────────────────────────────────────────────────── 文案
 
     /**
-     * 标题从服务端的 titles 池里随机挑，占位符在端上填。
+     * 标题从服务端的 titles 池里随机挑，占位符在端上填；`{top}` 用本次随机挑中的那条资源。
      * 文案维护在 scripts/gen-notify.js，改钩子不用发新版 APK。
      */
-    private fun buildTitle(payload: JSONObject): String {
+    private fun buildTitle(payload: JSONObject, featured: JSONObject?): String {
         val digest = payload.optJSONObject("digest") ?: JSONObject()
         val count = digest.optInt("count", 0)
-        val top = shorten(digest.optString("topTitle"), 18)
-        val category = topCategoryName(digest)
+        val top = shorten(featured?.optString("title").orEmpty(), 18)
+            .ifBlank { shorten(digest.optString("topTitle"), 18) }
+        val category = categoryNameOf(payload, featured)
 
         val titles = payload.optJSONArray("titles")
         val template = if (titles != null && titles.length() > 0) {
@@ -104,7 +108,7 @@ class NotifyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
             .trim()
     }
 
-    private fun buildText(payload: JSONObject): String {
+    private fun buildText(payload: JSONObject, featured: JSONObject?): String {
         val digest = payload.optJSONObject("digest") ?: JSONObject()
         val parts = mutableListOf<String>()
         val newCount = digest.optInt("newCount", 0)
@@ -113,15 +117,28 @@ class NotifyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         if (updateCount > 0) parts += "更新 $updateCount 个"
         if (parts.isEmpty()) parts += "有资源更新"
 
-        val top = shorten(digest.optString("topTitle"), 20)
+        val title = shorten(
+            featured?.optString("title").orEmpty().ifBlank { digest.optString("topTitle") },
+            20
+        )
         val prefix = digest.optString("dayLabel")
-        val tail = if (top.isBlank()) "" else "，先看《$top》"
+        val tail = if (title.isBlank()) "" else "，先看《$title》"
         return "$prefix${parts.joinToString(" · ")}资源$tail"
     }
 
-    private fun topCategoryName(digest: JSONObject): String {
-        val categories = digest.optJSONArray("categories") ?: return ""
-        val first = categories.optJSONObject(0) ?: return ""
+    /** 分类中文名取自 notify.json 的 digest.categories（源头是站点的 categories.json）。 */
+    private fun categoryNameOf(payload: JSONObject, featured: JSONObject?): String {
+        val categories = payload.optJSONObject("digest")?.optJSONArray("categories")
+        val key = featured?.optString("category").orEmpty()
+        if (categories != null && key.isNotBlank()) {
+            for (i in 0 until categories.length()) {
+                val item = categories.optJSONObject(i) ?: continue
+                if (item.optString("key") == key) {
+                    return item.optString("name").ifBlank { key }
+                }
+            }
+        }
+        val first = categories?.optJSONObject(0) ?: return ""
         return first.optString("name").ifBlank { first.optString("key") }
     }
 
@@ -157,8 +174,11 @@ class NotifyWorker(context: Context, params: WorkerParameters) : CoroutineWorker
         }
     }
 
-    private companion object {
+    companion object {
+        /** 排程时写进来的时段 key（如 `2026-09-16T13`）。 */
+        const val KEY_SLOT = "slot"
+
         /** titles 池意外为空时的兜底（服务端正常会带 10 条）。 */
-        const val DEFAULT_TITLE = "有 {count} 个新资源上架了"
+        private const val DEFAULT_TITLE = "有 {count} 个新资源上架了"
     }
 }

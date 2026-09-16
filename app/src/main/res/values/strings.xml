@@ -12,5 +12,5 @@
     <string name="install_failed">无法启动安装程序，请在文件管理器中手动安装</string>
 
     <string name="channel_updates">资源更新</string>
-    <string name="channel_updates_desc">有新的游戏资源上架时提醒你，每天最多一次</string>
+    <string name="channel_updates_desc">每天 13:00 与 20:00 各提醒一次，随机挑一条近期资源</string>
 </resources>

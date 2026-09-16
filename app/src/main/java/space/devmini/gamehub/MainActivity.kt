@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity() {
         )
 
         Notifications.ensureChannel(this)
-        Notifications.schedulePeriodic(this)
+        Notifications.scheduleNext(this)
         maybeRequestNotificationPermission()
 
         if (savedInstanceState == null) {
