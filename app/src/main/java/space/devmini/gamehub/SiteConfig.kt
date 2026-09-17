@@ -9,10 +9,10 @@ package space.devmini.gamehub
 object SiteConfig {
 
     /** 壳加载的首页，也是所有相对路径的解析基准。 */
-    const val HOME_URL = "https://mibear.top/"
+    const val HOME_URL = "https://pan.devmini.space/"
 
     /** 只信任这个域及其子域。 */
-    const val BASE_HOST = "mibear.top"
+    const val BASE_HOST = "pan.devmini.space"
 
     /** 每日摘要通知的数据源（构建期由 scripts/gen-notify.js 生成）。 */
     const val NOTIFY_PATH = "/data/notify.json"

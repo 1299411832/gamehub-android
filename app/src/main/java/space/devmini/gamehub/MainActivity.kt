@@ -33,7 +33,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 
 /**
- * Single-activity WebView shell for https://mibear.top/.
+ * Single-activity WebView shell for https://pan.devmini.space/.
  *
  * Site content is served remotely, so content updates never require an app release.
  * The shell only knows how to: stay on-site, hand foreign links to the system,

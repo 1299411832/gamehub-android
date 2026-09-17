@@ -1,6 +1,6 @@
 # 游戏源神 Android 客户端
 
-「游戏源神」（<https://mibear.top/>）的 Android 侧载壳：一个单 Activity 的 WebView 容器，
+「游戏源神」（<https://pan.devmini.space/>）的 Android 侧载壳：一个单 Activity 的 WebView 容器，
 **不是**独立客户端。站点内容更新后 App 无需发版即可看到最新内容。
 
 ## 下载
@@ -21,7 +21,7 @@ https://mibear.top/dl/gamehub-app.apk
 
 ## 壳的行为
 
-- 只加载 `mibear.top` 及其子域；站外 http/https 链接交给系统浏览器。
+- 只加载 `pan.devmini.space` 及其子域；站外 http/https 链接交给系统浏览器。
 - `quark://`、`uc://`、`xunlei://`、`baiduyun://`、`intent://` 等自定义 scheme 交给系统处理，
   未安装对应 App 时只弹 Toast，不崩溃。
 - 返回键优先网页后退；顶部有细进度条；主框架加载失败显示离线/重试视图。
@@ -77,6 +77,6 @@ CI 会把 `KEYSTORE_BASE64` 解码为临时文件并导出 `KEYSTORE_FILE` 给 G
 
 - Kotlin，XML 布局（不使用 Jetpack Compose）
 - 包名 / applicationId：`space.devmini.gamehub`
-- minSdk 26 / targetSdk 35 / compileSdk 35，versionCode 5 / versionName 1.0.4
+- minSdk 26 / targetSdk 35 / compileSdk 35，versionCode 7 / versionName 1.0.6
 - 矢量自适应图标（`mipmap-anydpi-v26` + 矢量前景，无二进制 PNG）
 - `usesCleartextTraffic=false`
